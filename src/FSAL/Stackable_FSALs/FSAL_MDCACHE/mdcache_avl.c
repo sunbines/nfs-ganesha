@@ -319,8 +319,7 @@ mdcache_avl_insert(mdcache_entry_t *entry, mdcache_dir_entry_t **dirent)
 	int code;
 
 	LogFullDebugAlt(COMPONENT_NFS_READDIR, COMPONENT_CACHE_INODE,
-			"Insert dir entry %p %s",
-			v, v->name);
+			"Insert dir entry %p %s", v, v->name);
 #ifdef DEBUG_MDCACHE
 	assert(entry->content_lock.__data.__cur_writer);
 #endif
@@ -336,7 +335,7 @@ mdcache_avl_insert(mdcache_entry_t *entry, mdcache_dir_entry_t **dirent)
 again:
 
 	node = avltree_insert(&v->node_name, &entry->fsobj.fsdir.avl.t);
-
+    // 如果node为NULL，表示插入成功，否者，平衡二叉树存在该节点，无法插入
 	if (!node) {
 		/* success */
 		if (v->chunk != NULL) {
@@ -344,20 +343,19 @@ again:
 			 * enter it into the "by FSAL cookie" avl also.
 			 */
 			if (mdcache_avl_insert_ck(entry, v) < 0) {
+				// 插入失败，在平衡二叉树中，该节点已经存在
 				/* We failed to insert into FSAL cookie
 				 * AVL tree, remove from lookup by name
 				 * AVL tree.
 				 */
-				avltree_remove(&v->node_name,
-					       &entry->fsobj.fsdir.avl.t);
+				avltree_remove(&v->node_name, &entry->fsobj.fsdir.avl.t);
 				v2 = NULL;
 				code = -4;
 				goto out;
 			}
 		}
 
-		if (isFullDebug(COMPONENT_CACHE_INODE) ||
-		    isFullDebug(COMPONENT_NFS_READDIR)) {
+		if (isFullDebug(COMPONENT_CACHE_INODE) || isFullDebug(COMPONENT_NFS_READDIR)) {
 			char str[LOG_BUFF_LEN] = "\0";
 			struct display_buffer dspbuf = {sizeof(str), str, str};
 
@@ -384,22 +382,17 @@ again:
 		/* The two names don't seem to have the same object
 		 * handle digest. Discard the old dirent and try again.
 		 */
-		if (isFullDebug(COMPONENT_CACHE_INODE) ||
-		    isFullDebug(COMPONENT_NFS_READDIR)) {
+		if (isFullDebug(COMPONENT_CACHE_INODE) || isFullDebug(COMPONENT_NFS_READDIR)) {
 			char str1[LOG_BUFF_LEN / 2] = "\0";
 			char str2[LOG_BUFF_LEN / 2] = "\0";
-			struct display_buffer dspbuf1 = {
-					sizeof(str1), str1, str1 };
-			struct display_buffer dspbuf2 = {
-					sizeof(str2), str2, str2 };
+			struct display_buffer dspbuf1 = { sizeof(str1), str1, str1 };
+			struct display_buffer dspbuf2 = { sizeof(str2), str2, str2 };
 
 			(void) display_mdcache_key(&dspbuf1, &v->ckey);
 			(void) display_mdcache_key(&dspbuf2, &v2->ckey);
 
-			LogFullDebugAlt(COMPONENT_NFS_READDIR,
-					COMPONENT_CACHE_INODE,
-					"Keys for %s don't match v=%s v2=%s",
-					v->name, str1, str2);
+			LogFullDebugAlt(COMPONENT_NFS_READDIR, COMPONENT_CACHE_INODE,
+				"Keys for %s don't match v=%s v2=%s", v->name, str1, str2);
 		}
 
 		/* Remove the found dirent. */
@@ -407,6 +400,8 @@ again:
 		v2 = NULL;
 		goto again;
 	}
+
+	// 代码运行于此, 表示插入的节点和二叉树存在的节点是同一个文件或目录
 
 	/* The v2 entry should NOT be deleted... */
 	assert((v2->flags & DIR_ENTRY_FLAG_DELETED) == 0);
@@ -432,18 +427,14 @@ again:
 			v2 = NULL;
 			code = -4;
 		} else {
-			if (isFullDebug(COMPONENT_CACHE_INODE) ||
-			    isFullDebug(COMPONENT_NFS_READDIR)) {
+			if (isFullDebug(COMPONENT_CACHE_INODE) || isFullDebug(COMPONENT_NFS_READDIR)) {
 				char str[LOG_BUFF_LEN] = "\0";
-				struct display_buffer dspbuf = {
-						sizeof(str), str, str };
+				struct display_buffer dspbuf = {sizeof(str), str, str };
 
 				(void) display_mdcache_key(&dspbuf, &v2->ckey);
 
-				LogFullDebugAlt(COMPONENT_NFS_READDIR,
-						COMPONENT_CACHE_INODE,
-						"Updated dirent %p with ck=%"
-						PRIx64
+				LogFullDebugAlt(COMPONENT_NFS_READDIR, COMPONENT_CACHE_INODE,
+						"Updated dirent %p with ck=%" PRIx64
 						" and chunk %p eod=%s ckey=%s",
 						v2, v2->ck, v2->chunk,
 						v2->eod ? "true" : "false",
@@ -461,23 +452,19 @@ again:
 		 */
 		if (v->ck == v2->ck) {
 			/* completely a duplicate entry, ignore it */
-			LogDebugAlt(COMPONENT_NFS_READDIR,
-				    COMPONENT_CACHE_INODE,
-				    "Duplicate filename %s insert into chunk %p, existing was in chunk %p, ignoring",
-				    v->name, v->chunk, v2->chunk);
+			LogDebugAlt(COMPONENT_NFS_READDIR, COMPONENT_CACHE_INODE,
+				 "Duplicate filename %s insert into chunk %p, existing was in chunk %p, ignoring",
+				v->name, v->chunk, v2->chunk);
 			code = 0;
 		} else {
 			/* This is an odd case, lets treat it as an
 			 * error.
 			 */
-			LogDebugAlt(COMPONENT_NFS_READDIR,
-				    COMPONENT_CACHE_INODE,
-				    "Duplicate filename %s with different cookies ckey %"
-				    PRIx64
-				    " chunk %p don't match existing ckey %"
-				    PRIx64" chunk %p",
-				    v->name, v->ck, v->chunk,
-				    v2->ck, v2->chunk);
+			LogDebugAlt(COMPONENT_NFS_READDIR, COMPONENT_CACHE_INODE,
+				"Duplicate filename %s with different cookies ckey %"PRIx64
+				" chunk %p don't match existing ckey %"PRIx64" chunk %p",
+				 v->name, v->ck, v->chunk,
+				v2->ck, v2->chunk);
 			code = -3;
 			v2 = NULL;
 		}
@@ -487,8 +474,8 @@ again:
 		 * exists so we are good.
 		 */
 		LogFullDebugAlt(COMPONENT_NFS_READDIR, COMPONENT_CACHE_INODE,
-				"Duplicate insert of %s v->chunk=%p v2->chunk=%p",
-				v->name, v->chunk, v2->chunk);
+			"Duplicate insert of %s v->chunk=%p v2->chunk=%p",
+			v->name, v->chunk, v2->chunk);
 		code = 0;
 	}
 
@@ -552,8 +539,7 @@ bool mdcache_avl_lookup_ck(mdcache_entry_t *entry, uint64_t ck,
 	return false;
 }
 
-mdcache_dir_entry_t *mdcache_avl_lookup(mdcache_entry_t *entry,
-					const char *name)
+mdcache_dir_entry_t *mdcache_avl_lookup(mdcache_entry_t *entry, const char *name)
 {
 	struct avltree_node *node;
 	mdcache_dir_entry_t *v2;
@@ -615,5 +601,3 @@ void mdcache_avl_clean_trees(mdcache_entry_t *parent)
 		mdcache_avl_remove(parent, dirent);
 	}
 }
-
-/** @} */

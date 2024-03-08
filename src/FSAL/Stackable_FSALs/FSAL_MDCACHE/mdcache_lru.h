@@ -152,8 +152,8 @@ void mdcache_lru_cleanup_try_push(mdcache_entry_t *entry);
 
 size_t mdcache_lru_release_entries(int32_t want_release);
 
-#define mdcache_lru_unref(e) _mdcache_lru_unref(e, LRU_FLAG_NONE, \
-						__func__, __LINE__)
+#define mdcache_lru_unref(e)  \ 
+	_mdcache_lru_unref(e, LRU_FLAG_NONE, __func__, __LINE__)
 bool _mdcache_lru_unref(mdcache_entry_t *entry, uint32_t flags,
 			const char *func, int line);
 void mdcache_lru_kill_for_shutdown(mdcache_entry_t *entry);
@@ -196,8 +196,7 @@ void _mdcache_lru_ref_chunk(struct dir_chunk *chunk, const char *func,
 			    int line);
 #define mdcache_lru_unref_chunk(chunk) \
 	_mdcache_lru_unref_chunk(chunk, __func__, __LINE__)
-void _mdcache_lru_unref_chunk(struct dir_chunk *chunk, const char *func,
-			      int line);
+void _mdcache_lru_unref_chunk(struct dir_chunk *chunk, const char *func, int line);
 struct dir_chunk *mdcache_get_chunk(mdcache_entry_t *parent,
 				    struct dir_chunk *prev_chunk,
 				    fsal_cookie_t whence);
@@ -208,4 +207,3 @@ fsal_cookie_t *mdc_lru_unmap_dirent(uint64_t ck);
 fsal_status_t dirmap_lru_init(struct mdcache_fsal_export *exp);
 void dirmap_lru_stop(struct mdcache_fsal_export *exp);
 #endif				/* MDCACHE_LRU_H */
-/** @} */

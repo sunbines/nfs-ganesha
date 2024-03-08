@@ -1025,5 +1025,3 @@ static struct config_block export_param = {
 	.blk_desc.u.blk.commit = noop_conf_commit
 };
 #endif
-
-/** @} */

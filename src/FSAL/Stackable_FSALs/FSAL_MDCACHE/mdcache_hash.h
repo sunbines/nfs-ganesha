@@ -64,9 +64,13 @@
  * contention.
  */
 typedef struct cih_partition {
+	// cin_lookup_table.partition
+	// 下标索引
 	uint32_t part_ix;
 	pthread_rwlock_t lock;
+	// 平衡二叉树root节点, 子节点: mdcache_fsobj_handle.fh_hk.node_k
 	struct avltree t;
+	// 数组, 缓存二叉树节点指针
 	struct avltree_node **cache;
 #ifdef ENABLE_LOCKTRACE
 	struct {
@@ -84,8 +88,11 @@ typedef struct cih_partition {
  */
 struct cih_lookup_table {
 	GSH_CACHE_PAD(0);
+	// 数组
 	cih_partition_t *partition;
+	// partition数组元素个数
 	uint32_t npart;
+	// 数组cin_partition_t.cache的元素个数
 	uint32_t cache_sz;
 };
 
@@ -173,8 +180,7 @@ static inline int cih_fh_cmpf(const struct avltree_node *lhs,
  * @return Pointer to node if found, else NULL.
  */
 static inline struct avltree_node *
-cih_fhcache_inline_lookup(const struct avltree *tree,
-			  const struct avltree_node *key)
+cih_fhcache_inline_lookup(const struct avltree *tree, const struct avltree_node *key)
 {
 	return avltree_inline_lookup(key, tree, cih_fh_cmpf);
 }
@@ -212,8 +218,7 @@ cih_hash_key(mdcache_key_t *key,
 	}
 
 	/* hash it */
-	key->hk =
-	    CityHash64WithSeed(fh_desc->addr, fh_desc->len, 557);
+	key->hk = CityHash64WithSeed(fh_desc->addr, fh_desc->len, 557);
 }
 
 #define CIH_GET_NONE           0x0000
@@ -293,11 +298,12 @@ cih_get_by_key_latch(mdcache_key_t *key, cih_latch_t *latch,
 	cache_slot = (void **)
 	    &(latch->cp->cache[cih_cache_offsetof(&cih_fhcache, key->hk)]);
 	node = (struct avltree_node *)atomic_fetch_voidptr(cache_slot);
+	// 缓存数组存在一个节点信息
 	if (node) {
 		if (cih_fh_cmpf(&k_entry.fh_hk.node_k, node) == 0) {
 			/* got it in 1 */
-			LogDebug(COMPONENT_HASHTABLE_CACHE,
-				 "cih cache hit slot %d",
+			// 在缓存数组存储了该节点信息
+			LogDebug(COMPONENT_HASHTABLE_CACHE, "cih cache hit slot %d",
 				 cih_cache_offsetof(&cih_fhcache, key->hk));
 			goto found;
 		}
@@ -308,11 +314,13 @@ cih_get_by_key_latch(mdcache_key_t *key, cih_latch_t *latch,
 	if (!node) {
 		if (flags & CIH_GET_UNLOCK_ON_MISS)
 			cih_hash_release(latch);
+		// 在平衡二叉树没有找到该节点的信息，可能文件或目录新创建
 		LogDebug(COMPONENT_HASHTABLE_CACHE, "fdcache MISS");
 		goto out;
 	}
 
 	/* update cache */
+	// 如果在平衡二叉树找到该节点，在数组缓存中存储这个node节点
 	atomic_store_voidptr(cache_slot, node);
 
 	LogDebug(COMPONENT_HASHTABLE_CACHE, "cih AVL hit slot %d",
@@ -392,20 +400,19 @@ cih_remove_checked(mdcache_entry_t *entry)
 	cih_partition_t *cp =
 	    cih_partition_of_scalar(&cih_fhcache, entry->fh_hk.key.hk);
 	bool unref = false;
+	// 是否释放了mdcache_entry内存
 	bool freed = false;
 
 	PTHREAD_RWLOCK_wrlock(&cp->lock);
 	node = cih_fhcache_inline_lookup(&cp->t, &entry->fh_hk.node_k);
 	if (entry->fh_hk.inavl && node) {
-		LogFullDebug(COMPONENT_CACHE_INODE,
-			     "Unhashing entry %p", entry);
+		LogFullDebug(COMPONENT_CACHE_INODE, "Unhashing entry %p", entry);
 #ifdef USE_LTTNG
 		tracepoint(mdcache, mdc_lru_remove, __func__, __LINE__,
-			   &entry->obj_handle, entry->lru.refcnt);
+			&entry->obj_handle, entry->lru.refcnt);
 #endif
 		avltree_remove(node, &cp->t);
-		cp->cache[cih_cache_offsetof(&cih_fhcache,
-					     entry->fh_hk.key.hk)] = NULL;
+		cp->cache[cih_cache_offsetof(&cih_fhcache, entry->fh_hk.key.hk)] = NULL;
 		entry->fh_hk.inavl = false;
 		/* return sentinel ref */
 		unref = true;

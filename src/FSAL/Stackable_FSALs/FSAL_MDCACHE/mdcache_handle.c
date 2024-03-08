@@ -108,28 +108,24 @@ fsal_status_t mdcache_alloc_and_check_handle(
 	}
 
 	LogFullDebug(COMPONENT_CACHE_INODE,
-		     "%sCreated entry %p FSAL %s for %s",
-		     tag, new_entry, new_entry->sub_handle->fsal->name,
-		     name);
+		"%sCreated entry %p FSAL %s for %s",
+		tag, new_entry, new_entry->sub_handle->fsal->name, name);
 
 	if (*invalidate) {
 		/* This function is called after a create, so go ahead
 		 * and invalidate the parent directory attributes.
 		 */
-		atomic_clear_uint32_t_bits(&parent->mde_flags,
-					   MDCACHE_TRUST_ATTRS);
+		atomic_clear_uint32_t_bits(&parent->mde_flags, MDCACHE_TRUST_ATTRS);
 	}
 
 	if (mdcache_param.dir.avl_chunk != 0) {
 		/* Add this entry to the directory (also takes an internal ref)
 		 */
-		status = mdcache_dirent_add(parent, name, new_entry,
-					    invalidate);
+		status = mdcache_dirent_add(parent, name, new_entry, invalidate);
 
 		if (FSAL_IS_ERROR(status)) {
 			LogDebug(COMPONENT_CACHE_INODE,
-				 "%s%s failed because add dirent failed",
-				 tag, name);
+				"%s%s failed because add dirent failed", tag, name);
 
 			mdcache_put(new_entry);
 			*new_obj = NULL;
@@ -147,8 +143,7 @@ fsal_status_t mdcache_alloc_and_check_handle(
 	*new_obj = &new_entry->obj_handle;
 
 	if (attrs_out != NULL) {
-		LogAttrlist(COMPONENT_CACHE_INODE, NIV_FULL_DEBUG,
-			    tag, attrs_out, true);
+		LogAttrlist(COMPONENT_CACHE_INODE, NIV_FULL_DEBUG, tag, attrs_out, true);
 	}
 
 	return status;
@@ -203,8 +198,7 @@ static fsal_status_t mdcache_mkdir(struct fsal_obj_handle *dir_hdl,
 			     struct fsal_attrlist *attrs_out)
 {
 	mdcache_entry_t *parent =
-		container_of(dir_hdl, mdcache_entry_t,
-			     obj_handle);
+		container_of(dir_hdl, mdcache_entry_t, obj_handle);
 	struct mdcache_fsal_export *export = mdc_cur_export();
 	struct fsal_obj_handle *sub_handle;
 	fsal_status_t status;
@@ -226,15 +220,13 @@ static fsal_status_t mdcache_mkdir(struct fsal_obj_handle *dir_hdl,
 	       );
 
 	if (unlikely(FSAL_IS_ERROR(status))) {
-		LogDebug(COMPONENT_CACHE_INODE,
-			 "mkdir %s failed with %s",
+		LogDebug(COMPONENT_CACHE_INODE, "mkdir %s failed with %s",
 			 name, fsal_err_txt(status));
 		if (status.major == ERR_FSAL_STALE) {
 			/* If we got ERR_FSAL_STALE, the previous FSAL call
 			 * must have failed with a bad parent.
 			 */
-			LogEvent(COMPONENT_CACHE_INODE,
-				 "FSAL returned STALE on mkdir");
+			LogEvent(COMPONENT_CACHE_INODE, "FSAL returned STALE on mkdir");
 			mdcache_kill_entry(parent);
 		}
 		*handle = NULL;
@@ -542,8 +534,7 @@ static fsal_status_t mdcache_readdir(struct fsal_obj_handle *dir_hdl,
 				  fsal_readdir_cb cb, attrmask_t attrmask,
 				  bool *eod_met)
 {
-	mdcache_entry_t *directory = container_of(dir_hdl, mdcache_entry_t,
-						  obj_handle);
+	mdcache_entry_t *directory = container_of(dir_hdl, mdcache_entry_t, obj_handle);
 	if (!(directory->obj_handle.type == DIRECTORY))
 		return fsalstat(ERR_FSAL_NOTDIR, 0);
 
@@ -1083,8 +1074,7 @@ static fsal_status_t mdcache_unlink(struct fsal_obj_handle *dir_hdl,
 	fsal_status_t status;
 
 	LogFullDebug(COMPONENT_CACHE_INODE,
-		     "Unlink %p/%s (%p)",
-		     parent, name, entry);
+		     "Unlink %p/%s (%p)", parent, name, entry);
 
 	if (obj_is_junction(&entry->obj_handle)) {
 		/* Cannot remove a junction */
@@ -1117,10 +1107,8 @@ static fsal_status_t mdcache_unlink(struct fsal_obj_handle *dir_hdl,
 		PTHREAD_RWLOCK_unlock(&parent->content_lock);
 
 		/* Invalidate attributes of parent and entry */
-		atomic_clear_uint32_t_bits(&parent->mde_flags,
-					   MDCACHE_TRUST_ATTRS);
-		atomic_clear_uint32_t_bits(&entry->mde_flags,
-					   MDCACHE_TRUST_ATTRS);
+		atomic_clear_uint32_t_bits(&parent->mde_flags, MDCACHE_TRUST_ATTRS);
+		atomic_clear_uint32_t_bits(&entry->mde_flags, MDCACHE_TRUST_ATTRS);
 
 		if (entry->obj_handle.type == DIRECTORY) {
 			PTHREAD_RWLOCK_wrlock(&entry->content_lock);
@@ -1131,10 +1119,8 @@ static fsal_status_t mdcache_unlink(struct fsal_obj_handle *dir_hdl,
 		mdc_unreachable(entry);
 	}
 
-	LogFullDebug(COMPONENT_CACHE_INODE,
-		     "Unlink %s %p/%s (%p)",
-		     FSAL_IS_ERROR(status) ? "failed" : "done",
-		     parent, name, entry);
+	LogFullDebug(COMPONENT_CACHE_INODE, "Unlink %s %p/%s (%p)",
+		FSAL_IS_ERROR(status) ? "failed" : "done", parent, name, entry);
 
 	return status;
 }

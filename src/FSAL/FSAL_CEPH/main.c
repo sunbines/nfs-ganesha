@@ -551,15 +551,13 @@ MODULE_INIT void init(void)
 {
 	struct fsal_module *myself = &CephFSM.fsal;
 
-	LogDebug(COMPONENT_FSAL,
-		 "Ceph module registering.");
+	LogDebug(COMPONENT_FSAL, "Ceph module registering.");
 
 	if (register_fsal(myself, module_name, FSAL_MAJOR_VERSION,
 			  FSAL_MINOR_VERSION, FSAL_ID_CEPH) != 0) {
 		/* The register_fsal function prints its own log
 		   message if it fails */
-		LogCrit(COMPONENT_FSAL,
-			"Ceph module failed to register.");
+		LogCrit(COMPONENT_FSAL, "Ceph module failed to register.");
 	}
 
 	/* Set up module operations */
@@ -583,8 +581,7 @@ MODULE_INIT void init(void)
 
 MODULE_FINI void finish(void)
 {
-	LogDebug(COMPONENT_FSAL,
-		 "Ceph module finishing.");
+	LogDebug(COMPONENT_FSAL, "Ceph module finishing.");
 
 	if (unregister_fsal(&CephFSM.fsal) != 0) {
 		LogCrit(COMPONENT_FSAL,

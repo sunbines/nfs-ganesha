@@ -142,9 +142,7 @@ static inline int mdcache_key_cmp(const struct mdcache_key *k1,
 		return 1;
 
 	/* deep compare */
-	return memcmp(k1->kv.addr,
-		      k2->kv.addr,
-		      k1->kv.len);
+	return memcmp(k1->kv.addr, k2->kv.addr, k1->kv.len);
 }
 
 /**
@@ -165,13 +163,15 @@ enum lru_q_id {
 #define LRU_CLEANED 0x00000002 /* Entry has been cleaned */
 
 typedef struct mdcache_lru__ {
+	// 双向链表普通节点, HEAD节点为lru_q.q
 	struct glist_head q;	/*< Link in the physical deque
-				   implementing a portion of the logical
-				   LRU. */
+				   implementing a portion of the logical LRU. */
+	// 表示链表类型, 每个CHUNK_LRU数组或者LRU数组有三种链表
 	enum lru_q_id qid;	/*< Queue identifier */
 	int32_t refcnt;		/*< Reference count.  This is signed to make
 				   mistakes easy to see. */
 	uint32_t flags;		/*< Status flags; MUST use atomic ops */
+	// CHUNK_LRU或者LRU数组下标
 	uint32_t lane;		/*< The lane in which an entry currently
 				 *< resides, so we can lock the deque and
 				 *< decrement the correct counter when moving
@@ -277,6 +277,8 @@ struct mdcache_fsal_obj_handle {
 	/** Reader-writer lock for attributes */
 	pthread_rwlock_t attr_lock;
 	/** MDCache FSAL Handle */
+	// 若是普通文件，obj_handle.state_hdl指向结构体mdcache_entry_t.fsobj.hdl
+	// 若是目录文件，obj_handle.state_hdl指向结构体mdcache_entry_t.fsobj.fsdir.hdl
 	struct fsal_obj_handle obj_handle;
 	/** Sub-FSAL handle */
 	struct fsal_obj_handle *sub_handle;
@@ -286,8 +288,10 @@ struct mdcache_fsal_obj_handle {
 	uint32_t attr_generation;
 	/** FH hash linkage */
 	struct {
+		// 平衡二叉树普通节点, root节点: cin_partition_t.t
 		struct avltree_node node_k;	/*< AVL node in tree */
 		mdcache_key_t key;	/*< Key of this entry */
+		// 若将node_k插入平衡二叉树cin_partition_t.t, 置为true
 		bool inavl;
 	} fh_hk;
 	/** Flags for this entry */
@@ -314,11 +318,16 @@ struct mdcache_fsal_obj_handle {
 	    Note that data for special files is in
 	    attributes.rawdev */
 	union mdcache_fsobj {
+		// 普通文件相关的状态信息
 		struct state_hdl hdl;
+		// 目录相关的状态信息
 		struct {
 			/** List of chunks in this directory, ordered */
+			// 双链表HEAD节点, 后继节点：dir_chunk.chunks
+			// 包含该目录下所有的文件和目录
 			struct glist_head chunks;
 			/** List of detached directory entries. */
+			// 双链表HEAD节点，后继节点：mdcache_dir_entry_t.chunk_list
 			struct glist_head detached;
 			/** Spin lock to protect the detached list. */
 			pthread_spinlock_t spin;
@@ -351,10 +360,13 @@ struct mdcache_fsal_obj_handle {
 			fsal_cookie_t first_ck;
 			struct {
 				/** Children by name hash */
+				// 平衡二叉树root节点，子节点：mdcache_dir_entry_t.node_name
 				struct avltree t;
 				/** Table of dirents by FSAL cookie */
+				// 平衡二叉树root节点，子节点：mdcache_dir_entry_t.node_ck
 				struct avltree ck;
 				/** Table of dirents in sorted order. */
+				// 平衡二叉树root节点，子节点：mdcache_dir_entry_t.node_sorted
 				struct avltree sorted;
 				/** Heuristic. Expect 0. */
 				uint32_t collisions;
@@ -365,18 +377,22 @@ struct mdcache_fsal_obj_handle {
 
 struct dir_chunk {
 	/** This chunk is part of a directory */
+	// 双链表后继节点, HEAD节点：mdcache_entry_t,fsobj.fsdir.chunks
 	struct glist_head chunks;
 	/** List of dirents in this chunk */
+	// 双链表HEAD节点, 后继节点：mdcache_dir_entry_t.chunk_list
 	struct glist_head dirents;
 	/** Directory this chunk belongs to */
 	struct mdcache_fsal_obj_handle *parent;
 	/** LRU link */
 	mdcache_lru_t chunk_lru;
 	/** Cookie to use to reload this chunk */
+	// dir_chunk双向链表第一个文件或目录的cookie
 	fsal_cookie_t reload_ck;
 	/** Cookie of first entry in sequentially next chunk, will be set to
 	 *  0 if there is no sequentially next chunk.
 	 */
+	// 下一个dir_chunk第一个文件或目录的cookie
 	fsal_cookie_t next_ck;
 	/** Number of entries in chunk */
 	int num_entries;
@@ -395,19 +411,25 @@ struct dir_chunk {
 
 typedef struct mdcache_dir_entry__ {
 	/** This dirent is part of a chunk */
+	// 双链表普通节点，HEAD节点: mdcache_entry_t,fsobj.fsdir.detached
+	// 双链表普通节点，HEAD节点: dir_chunk.dirents
 	struct glist_head chunk_list;
 	/** The chunk this entry belongs to */
 	struct dir_chunk *chunk;
 	/** node in tree by name */
+	// 普通子节点, 平衡二叉树root节点: mdcache_fsal_obj_handle.fsobj.fsdir.avl.t
 	struct avltree_node node_name;
 	/** AVL node in tree by cookie */
+	// 普通子节点, 平衡二叉树root节点: mdcache_fsal_obj_handle.fsobj.fsdir.avl.ck
 	struct avltree_node node_ck;
 	/** AVL node in tree by sorted order */
-	struct avltree_node node_sorted;
+	// 普通子节点, 平衡二叉树root节点: mdcache_fsal_obj_handle.fsobj.fsdir.avl.sorted
+	struct avltree_node no;de_sorted
 	/** Cookie value from FSAL
 	 *  This is the coookie that is the "key" to find THIS entry, however
 	 *  a readdir with whence will be looking for the NEXT entry.
 	 */
+	// 本文件或目录对应的cookied
 	uint64_t ck;
 	/** Indicates if this dirent is the last dirent in a chunked directory.
 	 */
@@ -423,6 +445,7 @@ typedef struct mdcache_dir_entry__ {
 	 * Only valid while the entry is ref'd.  Must be NULL otherwise.
 	 * Protected by the parent content_lock */
 	mdcache_entry_t *entry;
+	// 目录名或文件名，指向本结构成员变量name_buffer
 	const char *name;
 	/** The NUL-terminated filename */
 	char name_buffer[];
@@ -435,12 +458,11 @@ typedef struct mdcache_dir_entry__ {
  * @param[in]     dirent  Dirent to move to MRU
  */
 
-static inline void bump_detached_dirent(mdcache_entry_t *parent,
-					mdcache_dir_entry_t *dirent)
+static inline void 
+bump_detached_dirent(mdcache_entry_t *parent, mdcache_dir_entry_t *dirent)
 {
 	pthread_spin_lock(&parent->fsobj.fsdir.spin);
-	if (glist_first_entry(&parent->fsobj.fsdir.detached,
-			      mdcache_dir_entry_t, chunk_list) != dirent) {
+	if (glist_first_entry(&parent->fsobj.fsdir.detached, mdcache_dir_entry_t, chunk_list) != dirent) {
 		glist_del(&dirent->chunk_list);
 		glist_add(&parent->fsobj.fsdir.detached, &dirent->chunk_list);
 	}
@@ -454,8 +476,8 @@ static inline void bump_detached_dirent(mdcache_entry_t *parent,
  * @param[in]     dirent  Dirent to remove
  */
 
-static inline void rmv_detached_dirent(mdcache_entry_t *parent,
-				       mdcache_dir_entry_t *dirent)
+static inline void 
+rmv_detached_dirent(mdcache_entry_t *parent, mdcache_dir_entry_t *dirent)
 {
 	pthread_spin_lock(&parent->fsobj.fsdir.spin);
 	/* Note that the dirent might not be on the detached list if it
@@ -498,8 +520,10 @@ fsal_status_t mdcache_new_entry(struct mdcache_fsal_export *exp,
 fsal_status_t mdcache_find_keyed_reason(mdcache_key_t *key,
 					mdcache_entry_t **entry,
 					mdc_reason_t reason);
-#define mdcache_find_keyed(key, entry) mdcache_find_keyed_reason((key), \
-					(entry), MDC_REASON_DEFAULT)
+
+#define mdcache_find_keyed(key, entry)  \ 
+	mdcache_find_keyed_reason((key),(entry), MDC_REASON_DEFAULT)
+
 fsal_status_t mdcache_locate_host(struct gsh_buffdesc *fh_desc,
 				  struct mdcache_fsal_export *exp,
 				  mdcache_entry_t **entry,
@@ -559,8 +583,7 @@ static inline bool test_mde_flags(mdcache_entry_t *entry, uint32_t bits)
 	return (atomic_fetch_uint32_t(&entry->mde_flags) & bits) == bits;
 }
 
-static inline struct mdcache_fsal_export *mdc_export(
-					    struct fsal_export *fsal_export)
+static inline struct mdcache_fsal_export *mdc_export(struct fsal_export *fsal_export)
 {
 	return container_of(fsal_export, struct mdcache_fsal_export, mfe_exp);
 }
@@ -576,8 +599,7 @@ void _mdcache_kill_entry(mdcache_entry_t *entry,
 			 char *file, int line, char *function);
 
 #define mdcache_kill_entry(entry) \
-	_mdcache_kill_entry(entry, \
-			    (char *) __FILE__, __LINE__, (char *) __func__)
+	_mdcache_kill_entry(entry, (char *) __FILE__, __LINE__, (char *) __func__)
 
 fsal_status_t
 mdc_get_parent_handle(struct mdcache_fsal_export *exp,
@@ -649,8 +671,7 @@ typedef struct {
  * @return 0 on success.
  */
 static inline void
-mdcache_key_dup(mdcache_key_t *tgt,
-		    mdcache_key_t *src)
+mdcache_key_dup(mdcache_key_t *tgt, mdcache_key_t *src)
 {
 	tgt->kv.len = src->kv.len;
 	tgt->kv.addr = gsh_malloc(src->kv.len);
@@ -703,8 +724,7 @@ mdc_dir_add_parent(mdcache_entry_t *entry, mdcache_entry_t *mdc_parent)
 	/* The parent key must be a host-handle so that
 	 * create_handle() works in all cases.
 	 */
-	mdc_get_parent_handle(mdc_cur_export(), entry,
-			      mdc_parent->sub_handle);
+	mdc_get_parent_handle(mdc_cur_export(), entry, mdc_parent->sub_handle);
 }
 
 /**
@@ -979,13 +999,11 @@ _mdc_unreachable(mdcache_entry_t *entry,
 {
 	if (isDebug(COMPONENT_CACHE_INODE)) {
 		DisplayLogComponentLevel(COMPONENT_CACHE_INODE,
-					 file, line, function, NIV_DEBUG,
-					 "Unreachable %s entry %p %s state",
-					 object_file_type_to_str(
-							entry->obj_handle.type),
-					 entry,
-					 mdc_has_state(entry)
-						? "has" : "doesn't have");
+			file, line, function, NIV_DEBUG,
+			"Unreachable %s entry %p %s state",
+			object_file_type_to_str(entry->obj_handle.type),
+			entry,
+			mdc_has_state(entry) ? "has" : "doesn't have");
 	}
 
 	if (!mdc_has_state(entry)) {
@@ -997,8 +1015,7 @@ _mdc_unreachable(mdcache_entry_t *entry,
 }
 
 #define mdc_unreachable(entry) \
-	_mdc_unreachable(entry, \
-			 (char *) __FILE__, __LINE__, (char *) __func__)
+	_mdc_unreachable(entry, (char *) __FILE__, __LINE__, (char *) __func__)
 
 
 /* Handle methods */

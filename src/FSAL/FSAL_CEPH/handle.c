@@ -254,8 +254,7 @@ static fsal_status_t ceph_fsal_readdir(struct fsal_obj_handle *dir_pub,
 			enum fsal_dir_result cb_rc;
 
 			/* skip . and .. */
-			if ((strcmp(de.d_name, ".") == 0)
-			    || (strcmp(de.d_name, "..") == 0)) {
+			if ((strcmp(de.d_name, ".") == 0) || (strcmp(de.d_name, "..") == 0)) {
 				/* Deref inode here as we reference inode in
 				 * libcephfs readdir_r_cb. The other inodes
 				 * gets deref in deconstruct_handle.
@@ -279,8 +278,8 @@ static fsal_status_t ceph_fsal_readdir(struct fsal_obj_handle *dir_pub,
 				goto closedir;
 			}
 
-			cb_rc = cb(de.d_name, &obj->handle, &attrs, dir_state,
-					de.d_off);
+			// 调用函数
+			cb_rc = cb(de.d_name, &obj->handle, &attrs, dir_state, de.d_off);
 
 			fsal_release_attrs(&attrs);
 
@@ -352,10 +351,8 @@ static fsal_status_t ceph_fsal_mkdir(struct fsal_obj_handle *dir_hdl,
 	struct Inode *i = NULL;
 	fsal_status_t status;
 
-	LogFullDebug(COMPONENT_FSAL,
-		     "mode = %o uid=%d gid=%d",
-		     attrib->mode, (int) op_ctx->creds.caller_uid,
-		     (int) op_ctx->creds.caller_gid);
+	LogFullDebug(COMPONENT_FSAL, "mode = %o uid=%d gid=%d",
+		attrib->mode, (int) op_ctx->creds.caller_uid, (int) op_ctx->creds.caller_gid);
 
 	unix_mode = fsal2unix_mode(attrib->mode)
 		& ~op_ctx->fsal_export->exp_ops.fs_umask(op_ctx->fsal_export);
@@ -381,15 +378,12 @@ static fsal_status_t ceph_fsal_mkdir(struct fsal_obj_handle *dir_hdl,
 		 * security labels).
 		 */
 		op_ctx->fsal_private = CEPH_SETXATTR_AS_ROOT;
-		status = (*new_obj)->obj_ops->setattr2(*new_obj, false, NULL,
-						      attrib);
+		status = (*new_obj)->obj_ops->setattr2(*new_obj, false, NULL, attrib);
 		op_ctx->fsal_private = NULL;
 
 		if (FSAL_IS_ERROR(status)) {
 			/* Release the handle we just allocated. */
-			LogFullDebug(COMPONENT_FSAL,
-				     "setattr2 status=%s",
-				     fsal_err_txt(status));
+			LogFullDebug(COMPONENT_FSAL, "setattr2 status=%s", fsal_err_txt(status));
 			(*new_obj)->obj_ops->release(*new_obj);
 			*new_obj = NULL;
 		} else if (attrs_out != NULL) {

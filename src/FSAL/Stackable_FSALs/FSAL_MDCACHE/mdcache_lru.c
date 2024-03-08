@@ -824,9 +824,7 @@ lru_reap_chunk_impl(enum lru_q_id qid, mdcache_entry_t *parent)
 
 	lane = LRU_NEXT(chunk_reap_lane);
 
-	for (ix = 0;
-	     ix < LRU_N_Q_LANES;
-	     ++ix, lane = LRU_NEXT(chunk_reap_lane)) {
+	for (ix = 0; ix < LRU_N_Q_LANES; ++ix, lane = LRU_NEXT(chunk_reap_lane)) {
 
 		qlane = &CHUNK_LRU[lane];
 		lq = (qid == LRU_ENTRY_L1) ? &qlane->L1 : &qlane->L2;
@@ -877,9 +875,8 @@ lru_reap_chunk_impl(enum lru_q_id qid, mdcache_entry_t *parent)
 			chunk->chunk_lru.qid = LRU_ENTRY_NONE;
 
 #ifdef USE_LTTNG
-			tracepoint(mdcache, mdc_lru_reap_chunk,
-				   __func__, __LINE__,
-				   &entry->obj_handle, chunk);
+			tracepoint(mdcache, mdc_lru_reap_chunk,  __func__, __LINE__,
+				 &entry->obj_handle, chunk);
 #endif
 
 			/* Clean the chunk out and indicate the directory
@@ -889,8 +886,7 @@ lru_reap_chunk_impl(enum lru_q_id qid, mdcache_entry_t *parent)
 			 * lock.
 			 */
 			mdcache_clean_dirent_chunk(chunk);
-			atomic_clear_uint32_t_bits(&entry->mde_flags,
-						   MDCACHE_DIR_POPULATED);
+			atomic_clear_uint32_t_bits(&entry->mde_flags, MDCACHE_DIR_POPULATED);
 
 			if (entry != parent) {
 				/* And now we're done with the parent of the
@@ -943,8 +939,7 @@ struct dir_chunk *mdcache_get_chunk(mdcache_entry_t *parent,
 	if (lru_state.chunks_used >= lru_state.chunks_hiwat) {
 		lru = lru_reap_chunk_impl(LRU_ENTRY_L2, parent);
 		if (!lru)
-			lru = lru_reap_chunk_impl(
-					LRU_ENTRY_L1, parent);
+			lru = lru_reap_chunk_impl(LRU_ENTRY_L1, parent);
 	}
 
 	if (lru) {
@@ -952,14 +947,12 @@ struct dir_chunk *mdcache_get_chunk(mdcache_entry_t *parent,
 		 * The dirents list is effectively properly initialized.
 		 */
 		chunk = container_of(lru, struct dir_chunk, chunk_lru);
-		LogFullDebug(COMPONENT_CACHE_INODE,
-			     "Recycling chunk at %p.", chunk);
+		LogFullDebug(COMPONENT_CACHE_INODE, "Recycling chunk at %p.", chunk);
 	} else {
 		/* alloc chunk (if fails, aborts) */
 		chunk = gsh_calloc(1, sizeof(struct dir_chunk));
 		glist_init(&chunk->dirents);
-		LogFullDebug(COMPONENT_CACHE_INODE,
-			     "New chunk %p.", chunk);
+		LogFullDebug(COMPONENT_CACHE_INODE, "New chunk %p.", chunk);
 		(void) atomic_inc_int64_t(&lru_state.chunks_used);
 	}
 
@@ -2054,16 +2047,13 @@ _mdcache_lru_unref(mdcache_entry_t *entry, uint32_t flags, const char *func,
 			if (((entry->lru.flags & LRU_CLEANED) == 0) &&
 			    (entry->lru.qid == LRU_ENTRY_CLEANUP)) {
 				do_cleanup = true;
-				atomic_set_uint32_t_bits(&entry->lru.flags,
-							 LRU_CLEANED);
+				atomic_set_uint32_t_bits(&entry->lru.flags, LRU_CLEANED);
 			}
 			QUNLOCK(qlane);
 		}
 
 		if (do_cleanup) {
-			LogDebug(COMPONENT_CACHE_INODE,
-				 "LRU_ENTRY_CLEANUP of entry %p",
-				 entry);
+			LogDebug(COMPONENT_CACHE_INODE, "LRU_ENTRY_CLEANUP of entry %p", entry);
 			state_wipe_file(&entry->obj_handle);
 		}
 	}
@@ -2151,8 +2141,7 @@ void _mdcache_lru_ref_chunk(struct dir_chunk *chunk, const char *func, int line)
  * Should be called with content_lock held in write mode.
  * @param [in] chunk	The chunk to unref
  */
-void _mdcache_lru_unref_chunk(struct dir_chunk *chunk, const char *func,
-			      int line)
+void _mdcache_lru_unref_chunk(struct dir_chunk *chunk, const char *func, int line)
 {
 	int refcnt;
 	uint32_t lane;

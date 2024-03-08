@@ -42,4 +42,3 @@ extern int nfs_libmain(
 	const int debug_level);
 
 #endif				/* !NFS_LIB_H */
-/** @} */

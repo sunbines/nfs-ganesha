@@ -137,5 +137,3 @@ int mdcache_set_param_from_conf(config_file_t parse_tree,
 
 	return 0;
 }
-
-/** @} */

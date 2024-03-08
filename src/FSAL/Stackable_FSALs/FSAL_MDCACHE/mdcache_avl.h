@@ -57,8 +57,8 @@
 #include "mdcache_int.h"
 #include "avltree.h"
 
-static inline int avl_dirent_name_cmpf(const struct avltree_node *lhs,
-				       const struct avltree_node *rhs)
+static inline int 
+avl_dirent_name_cmpf(const struct avltree_node *lhs, const struct avltree_node *rhs)
 {
 	mdcache_dir_entry_t *lk, *rk;
 
@@ -74,8 +74,8 @@ static inline int avl_dirent_name_cmpf(const struct avltree_node *lhs,
 	return strcmp(lk->name, rk->name);
 }
 
-static inline int avl_dirent_ck_cmpf(const struct avltree_node *lhs,
-				     const struct avltree_node *rhs)
+static inline int 
+avl_dirent_ck_cmpf(const struct avltree_node *lhs, const struct avltree_node *rhs)
 {
 	mdcache_dir_entry_t *lk, *rk;
 
@@ -91,8 +91,8 @@ static inline int avl_dirent_ck_cmpf(const struct avltree_node *lhs,
 	return 1;
 }
 
-static inline int avl_dirent_sorted_cmpf(const struct avltree_node *lhs,
-					 const struct avltree_node *rhs)
+static inline int 
+avl_dirent_sorted_cmpf(const struct avltree_node *lhs, const struct avltree_node *rhs)
 {
 	mdcache_dir_entry_t *lk, *rk;
 	int rc;
@@ -134,4 +134,3 @@ void mdcache_avl_clean_trees(mdcache_entry_t *parent);
 void unchunk_dirent(mdcache_dir_entry_t *dirent);
 #endif				/* MDCACHE_AVL_H */
 
-/** @} */
