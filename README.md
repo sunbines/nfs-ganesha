@@ -15,3 +15,7 @@ See src/CONTRIBUTING_HOWTO.txt for details.
 # BUILDING
 
 See src/COMPILING_HOWTO.txt
+
+# roadmap
+
+See https://review.gerrithub.io/q/project:ffilz/nfs-ganesha
