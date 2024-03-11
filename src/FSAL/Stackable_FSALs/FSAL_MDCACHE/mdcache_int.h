@@ -361,6 +361,11 @@ struct mdcache_fsal_obj_handle {
 			} avl;
 		} fsdir;		/**< DIRECTORY data */
 	} fsobj;
+
+	// 为了测试，新增的字段，目录或者文件名字
+	const char *name;
+	// name指向该字段
+	char name_buffer[1024];
 };
 
 struct dir_chunk {
@@ -494,6 +499,7 @@ fsal_status_t mdcache_new_entry(struct mdcache_fsal_export *exp,
 				bool new_directory,
 				mdcache_entry_t **entry,
 				struct state_t *state,
+				const char *name,
 				uint32_t flags);
 fsal_status_t mdcache_find_keyed_reason(mdcache_key_t *key,
 					mdcache_entry_t **entry,

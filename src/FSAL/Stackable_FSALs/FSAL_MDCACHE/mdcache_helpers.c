@@ -169,6 +169,7 @@ static mdcache_entry_t *mdcache_alloc_handle(
 		struct mdcache_fsal_export *export,
 		struct fsal_obj_handle *sub_handle,
 		struct fsal_filesystem *fs,
+		const char *name,
 		uint32_t flags,
 		const char *func, int line)
 {
@@ -207,6 +208,13 @@ static mdcache_entry_t *mdcache_alloc_handle(
 	} else {
 		result->obj_handle.state_hdl = &result->fsobj.hdl;
 	}
+
+	if(name[0] == '\0') {
+		memcpy(&result->name_buffer, "???", strlen("???")+1);
+	} else {
+		memcpy(&result->name_buffer, name, strlen(name)+1);
+	}
+
 	state_hdl_init(result->obj_handle.state_hdl, result->obj_handle.type,
 		       &result->obj_handle);
 
@@ -680,6 +688,7 @@ mdcache_new_entry(struct mdcache_fsal_export *export,
 		  bool new_directory,
 		  mdcache_entry_t **entry,
 		  struct state_t *state,
+		  const char *name,
 		  uint32_t flags)
 {
 	fsal_status_t status;
@@ -725,7 +734,7 @@ mdcache_new_entry(struct mdcache_fsal_export *export,
 	/* We did not find the object.  Pull an entry off the LRU. The entry
 	 * will already be mapped.
 	 */
-	nentry = mdcache_alloc_handle(export, sub_handle, sub_handle->fs,
+	nentry = mdcache_alloc_handle(export, sub_handle, sub_handle->fs, name,
 				      flags, __func__, __LINE__);
 
 	if (nentry == NULL) {
@@ -1128,7 +1137,7 @@ mdcache_locate_host(struct gsh_buffdesc *fh_desc,
 	}
 
 	status = mdcache_new_entry(export, sub_handle, &attrs, false, attrs_out,
-				   false, entry, NULL,
+				   false, entry, NULL, "",
 				   LRU_ACTIVE_REF | LRU_PROMOTE);
 
 	fsal_release_attrs(&attrs);
@@ -1701,7 +1710,7 @@ mdc_readdir_uncached_cb(const char *name, struct fsal_obj_handle *sub_handle,
 	/* This is in the middle of a subcall. Do a supercall */
 	supercall_raw(state->export,
 		status = mdcache_new_entry(state->export, sub_handle, attrs,
-					   true, NULL, false, &new_entry, NULL,
+					   true, NULL, false, &new_entry, NULL, name,
 					   LRU_ACTIVE_REF)
 	);
 
@@ -2234,7 +2243,7 @@ mdc_readdir_chunk_object(const char *name, struct fsal_obj_handle *sub_handle,
 			name, cookie, sub_handle);
 
 	status = mdcache_new_entry(export, sub_handle, attrs_in, false, NULL,
-				   false, &new_entry, NULL, LRU_ACTIVE_REF);
+				   false, &new_entry, NULL, name, LRU_ACTIVE_REF);
 
 	if (FSAL_IS_ERROR(status)) {
 		*state->status = status;
